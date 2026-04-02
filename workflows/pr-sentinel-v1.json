@@ -1,0 +1,60 @@
+{
+  "name": "PR Sentinel: AI Senior Auditor (Codex CLI Edition)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "github-webhook-pr",
+        "options": {}
+      },
+      "name": "GitHub Webhook (PR)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $node[\"GitHub Webhook (PR)\"].json[\"pull_request\"][\"diff_url\"] }}",
+        "options": {}
+      },
+      "name": "Fetch Diff from GitHub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "command": "=codex \"As a Senior Staff Engineer, review the following Pull Request diff: \n\n{{ $node[\"Fetch Diff from GitHub\"].json[\"data\"] }}\" --dangerously-bypass-approvals-and-sandbox"
+      },
+      "name": "Audit via Codex CLI",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "resource": "issueComment",
+        "operation": "create",
+        "repositoryOwner": "={{ $node[\"GitHub Webhook (PR)\"].json[\"repository\"][\"owner\"][\"login\"] }}",
+        "repositoryName": "={{ $node[\"GitHub Webhook (PR)\"].json[\"repository\"][\"name\"] }}",
+        "issueNumber": "={{ $node[\"GitHub Webhook (PR)\"].json[\"pull_request\"][\"number\"] }}",
+        "body": "=### 🛡️ PR Sentinel AI: Senior Staff Auditor Output\n\n{{ $node[\"Audit via Codex CLI\"].json[\"stdout\"] }}"
+      },
+      "name": "Post Audit to PR",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "GitHub Webhook (PR)": {
+      "main": [[{ "node": "Fetch Diff from GitHub", "type": "main", "index": 0 }]]
+    },
+    "Fetch Diff from GitHub": {
+      "main": [[{ "node": "Audit via Codex CLI", "type": "main", "index": 0 }]]
+    },
+    "Audit via Codex CLI": {
+      "main": [[{ "node": "Post Audit to PR", "type": "main", "index": 0 }]]
+    }
+  }
+}
